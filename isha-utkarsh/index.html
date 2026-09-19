@@ -148,6 +148,7 @@ main.file-card {
     }
 
     var name = '';
+    var mobile = '';
     var attending = 'yes';
     var guests = [];
     var note = '';
@@ -157,6 +158,13 @@ main.file-card {
 
     function filledGuests() { return guests.map(function (g) { return g.trim(); }).filter(Boolean); }
     function totalGuests() { return 1 + filledGuests().length; }
+    function normalizedMobile() { return mobile.replace(/[^0-9+]/g, '').replace(/(?!^)\+/g, ''); }
+    function mobileError(v) {
+        var digits = v.replace(/\D/g, '');
+        if (!v.trim()) return 'Please add a mobile number so you can update this RSVP later.';
+        if (digits.length < 8 || digits.length > 15) return 'Enter a valid mobile number, with country code if outside India.';
+        return '';
+    }
 
     document.querySelector('.rsvp-logo').src = LOGO;
     var formSection = document.getElementById('rsvp-form');
@@ -164,7 +172,7 @@ main.file-card {
     function showThanks() {
         formSection.textContent = '';
         formSection.appendChild(el('h2', '', 'Your RSVP'));
-        formSection.appendChild(el('p', 'rsvp-thanks', 'Thank you, ' + name.trim() + '! Your RSVP has been recorded. We cannot wait to celebrate with you.'));
+        formSection.appendChild(el('p', 'rsvp-thanks', 'Thank you, ' + name.trim() + '! Your RSVP has been recorded. If you reply again with the same mobile number, your newest response will replace this one.'));
         formSection.appendChild(el('p', 'rsvp-hint', '2 - 3 December 2026, WelcomHeritage Arka Resort & Spa, Rishikesh.'));
         formSection.scrollIntoView({ block: 'start' });
     }
@@ -172,7 +180,7 @@ main.file-card {
     function send(sendBtn) {
         tried = true;
         renderForm();
-        if (nameError(name)) return;
+        if (nameError(name) || mobileError(mobile)) return;
         for (var i = 0; i < guests.length; i++) { if (guests[i].trim() !== '' && nameError(guests[i])) return; }
         sending = true;
         sendBtn.disabled = true;
@@ -187,6 +195,7 @@ main.file-card {
                 subject: 'Wedding RSVP: ' + name.trim(),
                 from_name: 'Wedding RSVP Page',
                 name: name.trim(),
+                mobile: normalizedMobile(),
                 attending: attending === 'yes' ? 'Joyfully accepts' : 'Regretfully declines',
                 guest_names: attending === 'yes' ? everyone : '',
                 guests: attending === 'yes' ? String(totalGuests()) : '0',
@@ -217,6 +226,22 @@ main.file-card {
         var nameErr = el('p', 'rsvp-error');
         nameErr.setAttribute('data-err', 'name');
         formSection.appendChild(nameErr);
+
+        var mobileLabel = el('label', 'rsvp-label', 'Primary guest mobile number');
+        var mobileInput = el('input', 'rsvp-input');
+        mobileInput.type = 'tel';
+        mobileInput.inputMode = 'tel';
+        mobileInput.autocomplete = 'tel';
+        mobileInput.placeholder = 'e.g. 98765 43210 or +44 7700 900123';
+        mobileInput.value = mobile;
+        mobileInput.setAttribute('aria-label', 'Primary guest mobile number');
+        mobileInput.addEventListener('input', function () { mobile = mobileInput.value; refreshErrors(); });
+        mobileLabel.appendChild(mobileInput);
+        formSection.appendChild(mobileLabel);
+        formSection.appendChild(el('p', 'rsvp-hint', 'Used only to match updates to your RSVP. Enter an Indian number or include your country code.'));
+        var mobileErr = el('p', 'rsvp-error');
+        mobileErr.setAttribute('data-err', 'mobile');
+        formSection.appendChild(mobileErr);
 
         if (attending === 'yes') {
             guests.forEach(function (g, i) {
@@ -291,7 +316,7 @@ main.file-card {
         sendBtn.addEventListener('click', function () { send(sendBtn); });
         formSection.appendChild(sendBtn);
 
-        formSection.appendChild(el('p', 'rsvp-hint', 'Your reply goes straight to the family. Nothing else is shared.'));
+        formSection.appendChild(el('p', 'rsvp-hint', 'Your reply goes straight to the family. Your mobile number is stored privately in their RSVP sheet and is not shown on this page.'));
 
         refreshErrors();
         refreshCounter();
@@ -309,6 +334,8 @@ main.file-card {
         }
         var showName = tried || name.trim() !== '';
         setMsg('name', showName ? nameError(name) : '');
+        var showMobile = tried || mobile.trim() !== '';
+        setMsg('mobile', showMobile ? mobileError(mobile) : '');
         guests.forEach(function (g, i) {
             setMsg('guest' + i, g.trim() !== '' ? nameError(g) : '');
         });
