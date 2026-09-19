@@ -59,6 +59,8 @@ main.file-card {
     font: inherit;
 }
 .rsvp-input:focus { outline: 2px solid #C6A15B; outline-offset: 1px; }
+.rsvp-phone-row { display:grid; grid-template-columns:minmax(126px,.72fr) minmax(0,1.28fr); gap:8px; }
+.rsvp-phone-row .rsvp-input { margin-top:6px; }
 .rsvp-guest-row { display: flex; gap: 8px; align-items: center; margin: 8px 0 0; }
 .rsvp-guest-row .rsvp-input { flex: 1; margin-top: 0; }
 .rsvp-remove {
@@ -148,6 +150,7 @@ main.file-card {
     }
 
     var name = '';
+    var countryCode = '+91';
     var mobile = '';
     var attending = 'yes';
     var guests = [];
@@ -158,18 +161,12 @@ main.file-card {
 
     function filledGuests() { return guests.map(function (g) { return g.trim(); }).filter(Boolean); }
     function totalGuests() { return 1 + filledGuests().length; }
-    function normalizedMobile() {
-        var raw = mobile.trim();
-        var digits = raw.replace(/\D/g, '');
-        if (raw.charAt(0) === '+') return '+' + digits;
-        if (digits.length === 10) return '+91' + digits;
-        if (digits.length === 11 && digits.charAt(0) === '0') return '+91' + digits.slice(1);
-        return digits;
-    }
+    function normalizedMobile() { return countryCode + mobile; }
     function mobileError(v) {
-        var digits = v.replace(/\D/g, '');
-        if (!v.trim()) return 'Please add a mobile number so you can update this RSVP later.';
-        if (digits.length < 8 || digits.length > 15) return 'Enter a valid mobile number, with country code if outside India.';
+        if (!v) return 'Please add a mobile number so you can update this RSVP later.';
+        if (!/^\d+$/.test(v)) return 'Use digits only - no spaces, letters or symbols.';
+        if (countryCode === '+91' && v.length !== 10) return 'Enter exactly 10 digits for an Indian mobile number.';
+        if (countryCode !== '+91' && (v.length < 6 || v.length > 14 || countryCode.slice(1).length + v.length > 15)) return 'Enter a valid local number for the selected country code.';
         return '';
     }
 
@@ -234,18 +231,13 @@ main.file-card {
         nameErr.setAttribute('data-err', 'name');
         formSection.appendChild(nameErr);
 
-        var mobileLabel = el('label', 'rsvp-label', 'Primary guest mobile number');
-        var mobileInput = el('input', 'rsvp-input');
-        mobileInput.type = 'tel';
-        mobileInput.inputMode = 'tel';
-        mobileInput.autocomplete = 'tel';
-        mobileInput.placeholder = 'e.g. 98765 43210 or +44 7700 900123';
-        mobileInput.value = mobile;
-        mobileInput.setAttribute('aria-label', 'Primary guest mobile number');
-        mobileInput.addEventListener('input', function () { mobile = mobileInput.value; refreshErrors(); });
-        mobileLabel.appendChild(mobileInput);
-        formSection.appendChild(mobileLabel);
-        formSection.appendChild(el('p', 'rsvp-hint', 'Used only to match updates to your RSVP. Enter an Indian number or include your country code.'));
+        formSection.appendChild(el('p', 'rsvp-label', 'Primary guest mobile number'));
+        var phoneRow=el('div','rsvp-phone-row'); var countrySelect=el('select','rsvp-input'); countrySelect.setAttribute('aria-label','Country code');
+        [['+91','India +91'],['+1','US/Canada +1'],['+44','UK +44'],['+61','Australia +61'],['+971','UAE +971'],['+65','Singapore +65'],['+64','New Zealand +64'],['+49','Germany +49'],['+33','France +33'],['+39','Italy +39'],['+34','Spain +34'],['+31','Netherlands +31'],['+41','Switzerland +41'],['+81','Japan +81'],['+82','South Korea +82'],['+852','Hong Kong +852'],['+974','Qatar +974'],['+966','Saudi Arabia +966'],['+977','Nepal +977'],['+880','Bangladesh +880']].forEach(function(item){var option=el('option','',item[1]);option.value=item[0];if(item[0]===countryCode)option.selected=true;countrySelect.appendChild(option);});
+        countrySelect.addEventListener('change',function(){countryCode=countrySelect.value;renderForm();});
+        var mobileInput=el('input','rsvp-input'); mobileInput.type='tel'; mobileInput.inputMode='numeric'; mobileInput.autocomplete='tel-national'; mobileInput.placeholder=countryCode==='+91'?'10-digit mobile number':'Local number'; mobileInput.maxLength=countryCode==='+91'?10:14; mobileInput.value=mobile; mobileInput.setAttribute('aria-label','Local mobile number'); mobileInput.addEventListener('input',function(){mobile=mobileInput.value;refreshErrors();});
+        phoneRow.appendChild(countrySelect);phoneRow.appendChild(mobileInput);formSection.appendChild(phoneRow);
+        formSection.appendChild(el('p','rsvp-hint','India (+91) is selected by default. Change the country code if needed. Used only to match RSVP updates.'));
         var mobileErr = el('p', 'rsvp-error');
         mobileErr.setAttribute('data-err', 'mobile');
         formSection.appendChild(mobileErr);
